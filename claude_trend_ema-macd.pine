@@ -1,0 +1,68 @@
+//@version=5
+indicator("Claude - Trend-Following — EMA + MACD", overlay=true, shorttitle="Claude Ind")
+
+// ─── Paramètres ────────────────────────────────────────────────────────────────
+emaFastLen  = input.int(9,  title="EMA Rapide",     minval=1)
+emaSlowLen  = input.int(21, title="EMA Lente",      minval=1)
+emaRSlowLen = input.int(200, title="EMA très Lente",minval=1)
+macdFast    = input.int(12, title="MACD Fast",      minval=1)
+macdSlow    = input.int(26, title="MACD Slow",      minval=1)
+macdSignal  = input.int(9,  title="MACD Signal",    minval=1)
+
+showEMAs    = input.bool(true, title="Afficher les EMAs")
+
+// ─── Calculs ───────────────────────────────────────────────────────────────────
+emaFast  = ta.ema(close,  emaFastLen)
+emaSlow  = ta.ema(close,  emaSlowLen)
+emaRSlow = ta.ema(close, emaRSlowLen)
+
+[macdLine, signalLine, _] = ta.macd(close, macdFast, macdSlow, macdSignal)
+
+// ─── Conditions ────────────────────────────────────────────────────────────────
+emaCrossUp   = ta.crossover(emaFast, emaSlow)
+emaCrossDown = ta.crossunder(emaFast, emaSlow)
+
+macdBullish  = macdLine > signalLine
+macdBearish  = macdLine < signalLine
+
+buySignal    = emaCrossUp   and macdBullish
+sellSignal   = emaCrossDown and macdBearish
+
+// ─── Tracé des EMAs ────────────────────────────────────────────────────────────
+plot(showEMAs ?  emaFast : na, title="EMA 9",  color=color.new(color.teal,   20), linewidth=1)
+plot(showEMAs ?  emaSlow : na, title="EMA 21", color=color.new(color.orange,  20), linewidth=1)
+plot(showEMAs ? emaRSlow : na, title="EMA 200", color=color.new(color.white,  20), linewidth=2)
+
+// ─── Signaux ───────────────────────────────────────────────────────────────────
+plotshape(
+     buySignal,
+     title     = "BUY",
+     style     = shape.triangledown,
+     location  = location.abovebar,
+     color     = color.new(color.teal, 0),
+     textcolor = color.white,
+     text      = "BUY",
+     size      = size.normal)
+
+plotshape(
+     sellSignal,
+     title     = "SELL",
+     style     = shape.triangleup,
+     location  = location.belowbar,
+     color     = color.new(color.red, 0),
+     textcolor = color.white,
+     text      = "SELL",
+     size      = size.normal)
+
+// ─── Fond coloré en position ───────────────────────────────────────────────────
+var bool inLong = false
+if buySignal
+    inLong := true
+if sellSignal
+    inLong := false
+
+bgcolor(inLong ? color.new(color.teal, 90) : na, title="Zone haussière")
+
+// ─── Alertes ───────────────────────────────────────────────────────────────────
+alertcondition(buySignal,  title="BUY  — EMA cross ↑ + MACD haussier", message="📈 BUY : EMA9 croise EMA21 à la hausse & MACD > Signal")
+alertcondition(sellSignal, title="SELL — EMA cross ↓ + MACD baissier",  message="📉 SELL : EMA9 croise EMA21 à la baisse & MACD < Signal")
